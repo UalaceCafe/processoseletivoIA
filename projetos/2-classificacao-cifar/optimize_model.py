@@ -1,5 +1,4 @@
 import tensorflow as tf
-import keras
 import os
 
 # ---------------------------------------------------------------------------
@@ -22,7 +21,7 @@ TFLITE_FILE = "model.tflite"
 #=
 # 2.a. Carregamento do model.h5 treinado
 #=
-model = keras.models.load_model(MODEL_FILE)
+model = tf.keras.models.load_model(MODEL_FILE)
 model.summary()
 
 #=
