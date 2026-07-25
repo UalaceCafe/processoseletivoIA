@@ -1,123 +1,48 @@
 # Projeto 2 — Classificação CIFAR-10
 
-## 💻 O Desafio Técnico
-
-Desenvolva um **modelo de Visão Computacional** capaz de **classificar imagens coloridas** em 10 categorias de objetos e animais (avião, automóvel, pássaro, gato, cervo, cachorro, sapo, cavalo, navio, caminhão), e posteriormente **otimize-o para execução em dispositivos Edge**.
-
-O foco não é apenas obter alta acurácia, mas **compreender o fluxo completo**:
-
-**treinamento → validação → salvamento → conversão → otimização**
-
-Este projeto tem uma diferença importante em relação a uma classificação de dígitos: as imagens são **coloridas (RGB)** e visualmente mais complexas, o que torna a tarefa de classificação genuinamente mais difícil — por isso **data augmentation** é um requisito obrigatório aqui, não opcional.
-
-## 🎯 Conjunto de Dados
-
-Dataset **CIFAR-10**, disponível diretamente via `tf.keras.datasets.cifar10` (não é necessário download manual). 60.000 imagens 32x32 coloridas, 10 classes.
-
-## ✅ Requisitos Obrigatórios
-
-### Etapa 1 — Treinamento do Modelo (`train_model.py`)
-
-Implemente:
-
-- Carregamento do dataset CIFAR-10 via TensorFlow
-- Split explícito treino/validação
-- **Data augmentation** aplicada ao conjunto de treino, usando camadas do Keras
-  (ex: `RandomFlip("horizontal")`, `RandomRotation`, `RandomZoom`) incorporadas ao
-  modelo ou ao pipeline de treino
-- Construção de uma CNN com 3-4 blocos convolucionais (`Conv2D` + `BatchNormalization`
-  + `MaxPooling2D`) seguida de `Dropout`
-- Treinamento com **early stopping** baseado na perda de validação
-- Exibição da **acurácia de validação final** no terminal
-- Salvamento do modelo treinado em formato Keras (`model.h5`)
-
-> 💡 Se você aplicar a augmentation de outra forma (ex: pré-processamento manual em
-> `tf.data`), tudo bem — apenas descreva isso claramente no relatório, já que a
-> correção automática busca primeiro por camadas de augmentation no próprio modelo.
-
-> 💡 CIFAR-10 é mais difícil que MNIST/Fashion-MNIST para uma CNN simples treinada
-> rapidamente em CPU — não se preocupe se a acurácia ficar bem abaixo de 90%. O
-> importante é o pipeline completo funcionar corretamente.
-
-### Etapa 2 — Otimização do Modelo (`optimize_model.py`)
-
-Implemente:
-
-- Carregamento do `model.h5` treinado
-- Conversão para **TensorFlow Lite** (`model.tflite`)
-- Aplicação de uma técnica de otimização (ex: **Dynamic Range Quantization**)
-
-### Etapa 3 — Inferência com o Modelo Otimizado (`run_inference.py`)
-
-Implemente:
-
-- Carregamento especificamente do **`model.tflite`** (o artefato de edge — não
-  o `model.h5`) usando `tf.lite.Interpreter`
-- Execução de inferência em pelo menos **5 amostras** do conjunto de teste
-- Exibição no terminal, para cada amostra, da classe **predita** vs. a classe **real**
-
-> 💡 Essa etapa existe porque uma métrica agregada (accuracy) pode esconder
-> problemas que só aparecem olhando exemplos individuais. Também é o teste mais
-> próximo do uso real em produção: carregar o artefato de edge e classificar
-> uma entrada por vez.
-
-## 📂 Estrutura da Pasta
-
-⚠️ Não altere os nomes dos arquivos.
-
-```
-projetos/2-classificacao-cifar/
-├── train_model.py         # ✏️ Treinamento do modelo
-├── optimize_model.py      # ✏️ Conversão e otimização
-├── run_inference.py       # ✏️ Inferência de exemplo com o modelo otimizado
-├── requirements.txt       # 📄 Dependências do projeto
-├── model.h5               # 🤖 Gerado por você — deve ser commitado
-├── model.tflite           # ⚡ Gerado por você — deve ser commitado
-└── README.md               # 📝 Este arquivo (também usado como relatório)
-```
-
-## ⚠️ Restrições e Considerações de Engenharia
-
-- Entrada do modelo: imagens 32x32, 3 canais (RGB), normalizadas em [0, 1]
-- CNN simples — evite arquiteturas muito profundas
-- Não utilize modelos pré-treinados
-- Número de épocas limitado (ex: até 25-30, com early stopping)
-- Treinamento apenas em CPU
-
-## ⚖️ Critérios de Avaliação
-
-- **Funcionalidade** — execução correta dos scripts e geração dos arquivos `.h5` e `.tflite`
-- **Qualidade do modelo** — acurácia de validação consistente com o esperado para o dataset
-- **Generalização** — uso adequado de data augmentation
-- **Edge AI** — conversão correta para `.tflite` com técnica de otimização aplicada
-- **Documentação** — preenchimento adequado do relatório abaixo
-
----
-
 ## 📝 Relatório do Candidato
 
-👤 **Nome Completo:**
+👤 **Nome Completo:** Ualace Henrique Santos Café
 
 ### 1️⃣ Resumo da Arquitetura do Modelo
 
-Descreva a arquitetura da CNN implementada em `train_model.py` e a estratégia de data augmentation utilizada.
+A arquitetura implementada recebe imagens `(32, 32, 3)` normalizadas para `[0, 1]` e é composta por quatro blocos convolucionais com número crescente de filtros (32 -> 64 -> 128 -> 256). Cada bloco contém duas camadas `Conv2D` (kernel 3x3, sem bias, já que, dado a `BatchNormalization`, o bias é redundante) seguidas de `BatchNormalization` + `ReLU`, terminando em um `MaxPooling2D`. Após o quarto bloco, uma `GlobalAveragePooling2D` substitui o método comum de usar uma camada de `Flatten` + uma `Dense` grande (isso foi feito para reduzir consideravelmente o número de parâmetros e o risco de overfitting, o que é especialmente relevante em um dataset pequeno como o CIFAR-10 treinado com poucas épocas em CPU). Um `Dropout(0.5)` antecede a camada final `Dense(10, activation="softmax")`.
+
+A estratégia de data augmentation (`RandomFlip("horizontal")`, `RandomRotation`, `RandomZoom` e `RandomTranslation`) foi incorporada como camadas Keras dentro do próprio grafo do modelo, logo após a entrada. Isso tem duas vantagens práticas: as transformações ficam automaticamente ativas apenas durante o fitting do modelo (`model.fit()`) e inertes durante a `evaluate()`/inferência, sem necessidade de pipelines separados, e assim a augmentation passa a fazer parte do artefato salvo.
 
 ### 2️⃣ Bibliotecas Utilizadas
 
-Liste as principais bibliotecas utilizadas, preferencialmente com suas versões.
+- **TensorFlow / Keras** — `tensorflow==2.15.1` (`keras==2.15.0`), usada para construção, treinamento, avaliação e salvamento do modelo (`train_model.py`), além da conversão para TensorFlow Lite (`optimize_model.py`) e da inferência com o interpretador (`run_inference.py`).
+- **NumPy** — manipulação de arrays e amostragem em `run_inference.py`.
+- **Bibliotecas padrão do Python** — `os`, `sys` e `io`, usadas para localizar caminhos de arquivo de forma independente do diretório de execução, normalizar a codificação de saída do terminal.
 
 ### 3️⃣ Técnica de Otimização do Modelo
 
-Explique qual técnica foi utilizada para otimizar o modelo em `optimize_model.py`.
+Em `optimize_model.py`, o modelo é convertido para TensorFlow Lite via o método `tf.lite.TFLiteConverter.from_keras_model()` com `converter.optimizations = [tf.lite.Optimize.DEFAULT]`, o que aplica **Dynamic Range Quantization** - ou seja, os pesos são quantizados de float32 para int8, enquanto as ativações permanecem em float32 e são re-escaladas em tempo de execução. Essa técnica foi escolhida em vez da quantização full-integer porque não exige um `representative_dataset` de calibração — reduzindo o risco de erro em um pipeline que precisa rodar sem intervenção manual, mas  ainda assim entregando uma redução significativa de tamanho do artefato final.
 
 ### 4️⃣ Resultados Obtidos
 
-Informe a acurácia de validação obtida e o tamanho dos arquivos `model.h5` e `model.tflite`.
+- **Acurácia de validação final:** 0.8472 (loss: 0.4578)
+- **Acurácia de teste final:** 0.8462 (loss: 0.4634)
+- **Tamanho de `model.h5`:** 13944.5 KB / 13.6 MB
+- **Tamanho de `model.tflite`:** 1169.7 KB / 1.14 MB (redução de 91.6%)
 
-### 5️⃣ Comentários Adicionais (Opcional)
+### 5️⃣ Comentários Adicionais
 
-Dificuldades encontradas, decisões técnicas importantes, limitações do modelo, aprendizados durante o desafio.
+A principal dificuldade não foi de modelagem, mas de compatibilidade entre ambientes: o `model.h5` treinado localmente embute nos configs dos inicializadores `VarianceScaling` (como `GlorotUniform`) os parâmetros `input_axes`/`output_axes`, introduzidos em uma versão recente do Keras. O ambiente de CI usado para validação roda uma versão de Keras mais antiga, cujo `GlorotUniform.__init__()` não reconhece esses argumentos. Assim, o carregamento falhava com `TypeError: GlorotUniform.__init__() got an unexpected keyword argument 'input_axes'` logo na desserialização da primeira camada convolucional. Para contornar isto, a solução adotada foi fixar uma versão do Tensorflow (`tensorflow==2.15.1`, mais especificamente) nos requerimentos, ao invés do original `tensorflow>=2.12`. Desse modo, foi possível garantir que ambos o workspace local quanto o do CI estivessem rodando a mesma versão dos pacotes requeridos.
+
+Outra decisão técnica relevante foi restringir o treinamento a `EarlyStopping` (monitorando `val_loss`, com `restore_best_weights=True`) combinado a `ReduceLROnPlateau`, dado o orçamento limitado de épocas/CPU imposto pelas restrições do projeto. Essa combinação permitiu extrair mais desempenho da rede antes do critério de parada ser acionado, sem exigir treinar por mais épocas do que o necessário.
 
 ### 6️⃣ Exemplo de Inferência
 
-Cole a saída do terminal ao rodar `run_inference.py` (predito vs. real para as 5+ amostras), e comente brevemente se houve algum caso interessante (acerto ou erro) entre as amostras testadas.
+Rodando inferência (`run_inference.py`) em 5 amostras usando o modelo `model.tflite`:
+
+```
+Amostra 1: predito=cat | real=cat
+Amostra 2: predito=ship | real=ship
+Amostra 3: predito=ship | real=ship
+Amostra 4: predito=airplane | real=airplane
+Amostra 5: predito=frog | real=frog
+```
+
+Todas as 5 amostras testadas tiveram a classe predita coincidindo com a classe real, sem nenhum erro de classificação nesse lote. Isso é consistente com a acurácia relativamente alta de validação obtida (0.8472), mas vale notar que 5 amostras é uma base pequena demais para tirar conclusões - um lote maior provavelmente revelaria confusões entre classes visualmente próximas (ex: gato/cão, automóvel/caminhão), como é típico em bases do tipo.
